@@ -1,0 +1,11 @@
+{
+  "as_of": "Nov 22, 2026",
+  "source": "https://www.coloradoapartmentmovers.com/pricing (typical totals, ground level, within a 30-minute drive of Littleton, recommended shrink wrap)",
+  "compare_ours": 470,
+  "totals": [
+    {"key": "1br", "label": "Studio / 1 bed", "low": 350, "high": 550, "crew": "2 movers"},
+    {"key": "2br", "label": "2 bedrooms", "low": 470, "high": 710, "crew": "2 movers"},
+    {"key": "3br", "label": "3 bedrooms", "low": 890, "high": 1250, "crew": "3 movers"},
+    {"key": "4br", "label": "4 bedrooms", "low": 1460, "high": 2020, "crew": "4 movers"}
+  ]
+}
