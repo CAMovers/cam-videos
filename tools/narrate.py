@@ -50,6 +50,19 @@ def eleven(scene, voice_id, prev_text, next_text, key, model=ELEVEN_MODEL):
         return r.read()
 
 
+def eleven_onetake(text, voice_id, key, model):
+    """Whole script in one take, with character timestamps for splitting."""
+    body = {"text": text, "model_id": model,
+            "voice_settings": {"stability": 0.5, "similarity_boost": 0.75}}
+    req = urllib.request.Request(
+        f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}/with-timestamps"
+        "?output_format=mp3_44100_128",
+        data=json.dumps(body).encode(),
+        headers={"Content-Type": "application/json", "xi-api-key": key})
+    with urllib.request.urlopen(req, timeout=600) as r:
+        return json.load(r)
+
+
 def google(scene, voice, key):
     body = json.dumps({
         "input": {"text": scene},
@@ -88,6 +101,22 @@ def main(folder):
         engine, voice = "google", GOOGLE_DEFAULT
     out = d / "vo"
     out.mkdir(exist_ok=True)
+    if engine == "eleven" and (d / "onetake.txt").exists():
+        # One continuous take: vo/full.mp3 + vo/alignment.json (scene char offsets
+        # in scenes[]); the renderer cuts it into scenes.
+        full = "\n\n".join(scenes)
+        res = eleven_onetake(full, voice, eleven_key, model)
+        (out / "full.mp3").write_bytes(base64.b64decode(res["audio_base64"]))
+        starts, pos = [], 0
+        for s in scenes:
+            starts.append(pos)
+            pos += len(s) + 2
+        (out / "alignment.json").write_text(json.dumps(
+            {"scene_char_starts": starts, "text": full,
+             "alignment": res.get("alignment"),
+             "normalized_alignment": res.get("normalized_alignment")}))
+        print(f"done: one take, {len(scenes)} scenes, {engine} voice {voice} {model}")
+        return
     for i, scene in enumerate(scenes, 1):
         if engine == "eleven":
             prev_text = scenes[i - 2] if i > 1 else ""
