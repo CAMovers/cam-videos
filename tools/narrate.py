@@ -9,6 +9,7 @@ Voices (voice.txt):
                           same voice as Casey on the phones. Default since
                           Nov 25, 2026 (Musa: "switch to the ElevenLabs voice").
   elevenlabs:<voice_id>   any other ElevenLabs voice
+  elevenlabs:<voice_id>:<model>   e.g. ...:eleven_v3 (expressive; supports [tags])
   en-US-Chirp3-HD-Aoede   (any Google voice name) Google Cloud Text-to-Speech
 
 Env:
@@ -23,13 +24,17 @@ ELEVEN_MODEL = "eleven_multilingual_v2"
 GOOGLE_DEFAULT = "en-US-Chirp3-HD-Aoede"
 
 
-def eleven(scene, voice_id, prev_text, next_text, key):
+def eleven(scene, voice_id, prev_text, next_text, key, model=ELEVEN_MODEL):
     body = {
         "text": scene,
-        "model_id": ELEVEN_MODEL,
+        "model_id": model,
         "voice_settings": {"stability": 0.5, "similarity_boost": 0.75,
                            "style": 0.15, "use_speaker_boost": True},
     }
+    if model in ("eleven_v3", "eleven_v4"):
+        # Expressive models: looser settings, no context stitching.
+        body["voice_settings"] = {"stability": 0.5, "similarity_boost": 0.75}
+        prev_text = next_text = ""
     # Neighbouring scenes keep the tone and pacing even across clips.
     if prev_text:
         body["previous_text"] = prev_text
@@ -74,6 +79,9 @@ def main(folder):
     text = (d / "script.txt").read_text(encoding="utf-8")
     scenes = [p.strip() for p in text.split("\n\n") if p.strip()]
     engine, voice = pick_voice(d)
+    model = ELEVEN_MODEL
+    if engine == "eleven" and ":" in voice:  # elevenlabs:<voice_id>:<model>
+        voice, model = voice.split(":", 1)
     eleven_key = os.environ.get("ELEVENLABS_API_KEY", "").strip()
     if engine == "eleven" and not eleven_key:
         print("ELEVENLABS_API_KEY not set: falling back to Google " + GOOGLE_DEFAULT)
@@ -84,7 +92,7 @@ def main(folder):
         if engine == "eleven":
             prev_text = scenes[i - 2] if i > 1 else ""
             next_text = scenes[i] if i < len(scenes) else ""
-            audio = eleven(scene, voice, prev_text, next_text, eleven_key)
+            audio = eleven(scene, voice, prev_text, next_text, eleven_key, model)
         else:
             audio = google(scene, voice, os.environ["GOOGLE_TTS_API_KEY"])
         (out / f"{i:02d}.mp3").write_bytes(audio)
